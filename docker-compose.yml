@@ -49,6 +49,8 @@ services:
         source: ${BREWBLOX_CACHE_DIR}/simulator__sparkey
         target: /app/simulator
     command: --name=sparkey --simulation --device-id=123456789012345678901234
+    # labels:
+    #   - traefik.http.routers.ui.middlewares=auth
 
   spock:
     image: ghcr.io/brewblox/brewblox-devcon-spark:develop
@@ -73,6 +75,14 @@ services:
     privileged: true
     command: --mqtt-port=9001 --simulate=Pink
 
+  auth:
+    image: ghcr.io/brewblox/brewblox-auth:local
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ../brewblox-auth/
+        target: /app
+
   traefik:
     image: traefik:2.2
     ports:
@@ -82,6 +92,10 @@ services:
       - traefik.http.routers.api.rule=PathPrefix(`/api`) || PathPrefix(`/dashboard`)
       - traefik.http.routers.api.service=api@internal
       - traefik.http.middlewares.prefix-strip.stripprefixregex.regex=/[^/]+
+      - traefik.http.middlewares.auth.forwardauth.address=http://auth:5000/auth/validate
+      - traefik.http.middlewares.auth.forwardauth.trustForwardHeader=true
+      - traefik.http.middlewares.auth.forwardauth.authRequestHeaders=Accept,Authorization
+      - traefik.http.middlewares.auth.forwardauth.authResponseHeaders=Authorization
     volumes:
       - type: bind
         source: ./dev/traefik
